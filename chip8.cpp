@@ -8,6 +8,8 @@
 #include <time.h>
 #include <vector>
 
+#include <SDL2/SDL.h>
+
 #include "chip8.h"
 
 Chip8::Chip8(std::string rom_path) {
@@ -28,11 +30,13 @@ void Chip8::load_rom(std::string rom_path) {
   }
 }
 
-void Chip8::run() {
+// @@@
+void Chip8::run(SDL_Window* window) {
   using namespace std::chrono_literals;
   const auto clock_speed = 1ms;
+  SDL_Event event;
 
-  while (true) {
+  while (true && event.type != SDL_QUIT) {
     uint16_t ins = fetch_instruction();
 
     program_counter += 2;
@@ -40,6 +44,8 @@ void Chip8::run() {
     execute_instruction(ins);
 
     std::this_thread::sleep_for(clock_speed);
+
+    SDL_PollEvent(&event);
   }
 }
 

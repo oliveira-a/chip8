@@ -11,6 +11,8 @@
 #include <time.h>
 #include <vector>
 
+#include <SDL2/SDL.h>
+
 #define COLS 64
 #define ROWS 32
 #define LOG_ERR(x) std::cerr << "ERROR: " << x << std::endl;
@@ -57,7 +59,7 @@ class Chip8 {
   public:
     Chip8(std::string rom_path);
 
-    void run();
+    void run(SDL_Window* window);
     void load_rom(std::string rom_path);
 };
 
