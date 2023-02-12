@@ -13,11 +13,7 @@
 
 #include <SDL2/SDL.h>
 
-#define COLS 64
-#define ROWS 32
-#define LOG_ERR(x) std::cerr << "ERROR: " << x << std::endl;
-#define LOG_STR(x) printf("LOG: %s\n", x);
-#define LOG_INT(x) printf("LOG: %d\n", x);
+#include "macros.h"
 
 class Chip8 {
   private:
@@ -52,14 +48,20 @@ class Chip8 {
       0xF0, 0x80, 0xF0, 0x80, 0x80  // F
     };
 
-    void initialise_values();
+    SDL_Window* window;
+    SDL_Texture* texture;
+    SDL_Renderer* renderer;
+
     uint16_t fetch_instruction();
+    void draw();
+    void initialise_values();
     void execute_instruction(uint16_t instruction);
 
   public:
-    Chip8(std::string rom_path);
+    Chip8(std::string rom_path, SDL_Window* window);
 
-    void run(SDL_Window* window);
+    void run();
+    void cycle();
     void load_rom(std::string rom_path);
 };
 

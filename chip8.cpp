@@ -12,9 +12,38 @@
 
 #include "chip8.h"
 
-Chip8::Chip8(std::string rom_path) {
+Chip8::Chip8(std::string rom_path, SDL_Window* window) {
+  this->window = window;
   initialise_values();
   load_rom(rom_path);
+}
+
+void Chip8::initialise_values() {
+  this->program_counter = 0x200;
+  this->stack_pointer   = 0;
+  this->index_register  = 0;
+  this->delay_timer     = 0;
+  this->sound_timer     = 0;
+
+  this->stack.fill(0);
+  this->display.fill(0);
+  this->keys.fill(0);
+  this->memory.fill(0);
+
+  for (size_t i = 0; i < font.size(); i++) {
+    this->memory[i] = font[i];
+  }
+
+  /* A random number generator using a time seed. */
+  srand(time(NULL));
+
+  /* SDL */
+  this->renderer = SDL_CreateRenderer(this->window, -1,
+      SDL_RENDERER_ACCELERATED);
+
+  this->texture  = SDL_CreateTexture(
+      renderer, SDL_PIXELFORMAT_RGBA8888, 
+      SDL_TEXTUREACCESS_STREAMING, COLS, ROWS);
 }
 
 void Chip8::load_rom(std::string rom_path) {
@@ -25,30 +54,57 @@ void Chip8::load_rom(std::string rom_path) {
   rom.read(reinterpret_cast<char *>(buffer.data()), rom_size);
 
   for (int i = 0; i < rom_size; i++) {
-    /* Progam mem space starts at 0x200 (512 base10) */
+    /* Program mem space starts at 0x200 (512 base10) */
     memory[i + 512] = buffer[i];
   }
 }
 
-// @@@
-void Chip8::run(SDL_Window* window) {
-  using namespace std::chrono_literals;
-  const auto clock_speed = 1ms;
+void Chip8::run() {
   SDL_Event event;
+  uint32_t start_time;
+  uint32_t delta;
 
-  while (true && event.type != SDL_QUIT) {
-    uint16_t ins = fetch_instruction();
+  while (event.type != SDL_QUIT) {
+    start_time = SDL_GetTicks();
 
-    program_counter += 2;
-
-    execute_instruction(ins);
-
-    std::this_thread::sleep_for(clock_speed);
+    for (int i = 0; i < 8; i++) {
+      this->cycle();
+    }
 
     SDL_PollEvent(&event);
+    // TODO
+    delta = SDL_GetTicks() - start_time;
+    if ((1000/60) > delta) {
+      SDL_Delay((1000/60) - delta);
+    }
+
   }
 }
 
+void Chip8::cycle() {
+  uint16_t ins = fetch_instruction();
+  program_counter += 2;
+  execute_instruction(ins);
+}
+
+void Chip8::draw() {
+  uint32_t* pixels    = nullptr;
+  uint8_t pixel_draw  = 0;
+  int pitch;
+
+  SDL_LockTexture(texture, nullptr, reinterpret_cast<void**>
+      (&pixels), &pitch);
+
+  for (int i=0; i < COLS*ROWS; i++) {
+    pixel_draw = this->display[i] == 1;
+    pixels[i] = pixel_draw ? 0xFFFFFFFF : 0x000000FF;
+  }
+
+  SDL_UnlockTexture(texture);
+  SDL_RenderClear(renderer);
+  SDL_RenderCopy(renderer, texture, nullptr, nullptr);
+  SDL_RenderPresent(renderer);
+}
 
 uint16_t Chip8::fetch_instruction() {
   uint16_t ins = this->memory[this->program_counter];
@@ -75,7 +131,6 @@ void Chip8::execute_instruction(uint16_t instruction) {
           display.fill(0);
           break;
         case 0x00EE:
-          LOG_STR("Return from Subroutine");
           program_counter = stack[stack_pointer--];
           break;
       }
@@ -155,24 +210,28 @@ void Chip8::execute_instruction(uint16_t instruction) {
       break;
     case 0xD000:
       uint16_t x;
-      uint16_t y;
+      uint16_t y; 
+      uint8_t* screen_pixel;
+      
+      x = registers[reg_x] % COLS;
+      y= registers[reg_y] % ROWS;
       registers[0xF] = 0;
 
-      for (int row = 0; row < value_n; row++) {
+      for (size_t row = 0; row < value_n; row++) {
         uint8_t sprite = memory[index_register + row];
-        for (int col = 0; col < 8; col++) {
-          x = (registers[reg_x] % 64) + row;
-          y = (registers[reg_y] % 32) + col;
+        for (size_t col = 0; col < 8; col++) {
+          screen_pixel = &display[(y + row) * COLS + (x + col)];
           if (sprite & (0b1000'0000 >> col)) {
-            if (display[x + y]) {
-              registers[0xF] = 1;
-              display[x + y] = 0;
-            } else {
-              display[x + y] = 1;
+            if (*screen_pixel) {
+              registers[0xF] = 1; /* collision */
             }
+            *screen_pixel ^= 1;
           }
         }
       }
+
+      this->draw();
+
       break;
     case 0xE000:
       switch (value_nn) {
@@ -229,7 +288,6 @@ void Chip8::execute_instruction(uint16_t instruction) {
           }
           break;
         case 0x0065:
-          LOG_STR("@@");
           for (int i=0; i <= reg_x; i++) {
             registers[i] = memory[index_register + i];
           }
@@ -240,25 +298,5 @@ void Chip8::execute_instruction(uint16_t instruction) {
       LOG_ERR("OPCODE not recognised... Abort.");
       exit(1);
   }
-}
-
-void Chip8::initialise_values() {
-  this->program_counter = 0x200;
-  this->stack_pointer = 0;
-  this->index_register = 0;
-  this->delay_timer = 0;
-  this->sound_timer = 0;
-
-  this->stack.fill(0);
-  this->display.fill(0);
-  this->keys.fill(0);
-  this->memory.fill(0);
-
-  for (size_t i = 0; i < font.size(); i++) {
-    this->memory[i] = font[i];
-  }
-
-  /* A random number generator using a time seed. */
-  srand(time(NULL));
 }
 

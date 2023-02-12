@@ -1,4 +1,4 @@
-#include <SDL2/SDL.h>
+#include <SDL2/SDL.h> 
 
 #include "chip8.h"
 #include "macros.h"
@@ -14,8 +14,8 @@ int main(int argc, char** args) {
         NAME,
         SDL_WINDOWPOS_UNDEFINED,
         SDL_WINDOWPOS_UNDEFINED,
-        COLS*10,
-        ROWS*10,
+        COLS*SCALE,
+        ROWS*SCALE,
         SDL_WINDOW_SHOWN
         );
 
@@ -25,9 +25,12 @@ int main(int argc, char** args) {
     }
   }
 
-  Chip8 chip8("test.rom");
+  Chip8 chip8("pong.rom", window);
 
-  chip8.run(window);
+  chip8.run();
+
+  SDL_Quit();
 
   return 0;
 }
+
