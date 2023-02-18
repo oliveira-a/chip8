@@ -1,5 +1,0 @@
-[x] Inital setup of system;
-[x] Setup all instructions;
-[_] Refactor ins to functions for readibility;
-[_] Implement client SDL;
-[_] Write unit tests;
